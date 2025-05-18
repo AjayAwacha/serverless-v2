@@ -1,0 +1,15 @@
+# Node.js
+node_modules/
+# package-lock.json
+
+# Serverless build artifacts
+.serverless/
+.webpack/
+lambda-package.zip
+
+# TypeScript build output
+dist/
+*.tsbuildinfo
+
+# VS Code settings
+.vscode/

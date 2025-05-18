@@ -1,0 +1,25 @@
+{
+  "name": "csv-pipeline-app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && serverless offline",
+    "invoke:csvProcessor": "npm run build && serverless invoke local --function csvProcessor --path events/sample.csv",
+    "invoke:dbWriter": "npm run build && serverless invoke local --function dbWriter --path events/sample.json"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.149",
+    "@types/node": "^22.15.18",
+    "serverless-offline": "^14.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1692.0",
+    "csv-parser": "^3.2.0"
+  }
+}

@@ -1,0 +1,117 @@
+service: csv-pipeline-app
+frameworkVersion: "~4.14.3"
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ap-south-1
+  stage: ${opt:stage, 'dev'}
+  environment:
+    SNS_TOPIC_ARN: ${self:custom.resources.${opt:stage, 'dev'}.snsArn}
+    DDB_TABLE: ${self:custom.resources.${opt:stage, 'dev'}.ddbTable}
+
+  iamRoleStatements:
+    # csvProcessor permissions
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - sns:Publish
+      Resource:
+        - arn:aws:s3:::${self:custom.resources.${opt:stage, 'dev'}.bucket}/*
+        - arn:aws:sns:${self:custom.awsRegion}:${aws:accountId}:${self:custom.resources.${opt:stage, 'dev'}.snsName}
+
+    # dbWriter permissions
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+      Resource:
+        - arn:aws:dynamodb:${self:custom.awsRegion}:${aws:accountId}:table/${self:custom.resources.${opt:stage, 'dev'}.ddbTable}
+
+functions:
+  csvProcessor:
+    handler: dist/csvProcessor.handler
+    events:
+      - s3:
+          bucket: ${self:custom.resources.${opt:stage, 'dev'}.bucket}
+          event: s3:ObjectCreated:*
+          rules:
+            - prefix: uploads/
+            - suffix: .csv
+
+  dbWriter:
+    handler: dist/dbWriter.handler
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt: [PipelineQueue, Arn]
+
+custom:
+  awsRegion: ap-south-1
+  resources:
+    dev:
+      bucket: ajaya-csv-upload-dev
+      snsName: csv-dev-topic
+      snsArn: arn:aws:sns:ap-south-1:${aws:accountId}:csv-dev-topic
+      ddbTable: CsvDevTable
+    prod:
+      bucket: ajaya-csv-upload-prod
+      snsName: csv-prod-topic
+      snsArn: arn:aws:sns:ap-south-1:${aws:accountId}:csv-prod-topic
+      ddbTable: CsvProdTable
+
+plugins:
+  - serverless-offline
+
+resources:
+  Resources:
+    # SNS Topic
+    PipelineTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.resources.${opt:stage, 'dev'}.snsName}
+
+    # SQS Queue
+    PipelineQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: csv-queue-${opt:stage, 'dev'}
+
+    # SNS Subscription to SQS
+    PipelineSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: !Ref PipelineTopic
+        Protocol: sqs
+        Endpoint:
+          Fn::GetAtt: [PipelineQueue, Arn]
+        RawMessageDelivery: true
+
+    # Allow SNS to send messages to SQS
+    SqsQueuePolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - Ref: PipelineQueue
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal: "*"
+              Action: "sqs:SendMessage"
+              Resource: "*"
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Ref PipelineTopic
+
+    # DynamoDB Table
+    CsvTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.resources.${opt:stage, 'dev'}.ddbTable}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
