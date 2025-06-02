@@ -2,7 +2,7 @@ import { SQSEvent } from "aws-lambda";
 import * as AWS from "aws-sdk";
 
 const dynamo = new AWS.DynamoDB.DocumentClient();
-
+ 
 export const handler = async (event: SQSEvent) => {
   for (const record of event.Records) {
     const data = JSON.parse(record.body);
