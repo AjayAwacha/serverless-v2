@@ -23,6 +23,8 @@ export const handler = async (event: S3Event) => {
   });
 
   for (const record of results) {
+    console.log('Record to push ', record);
+    console.log('SNS Topic ARN ', process.env.SNS_TOPIC_ARN);
     await sns.publish({
       TopicArn: process.env.SNS_TOPIC_ARN,
       Message: JSON.stringify(record),
