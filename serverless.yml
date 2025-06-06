@@ -50,9 +50,6 @@ functions:
       - sqs:
           arn:
             Fn::GetAtt: [PipelineQueue, Arn]
-    deadLetter:
-      targetArn:
-        Fn::GetAtt: [DbWriterDLQ, Arn]
 
 
 custom:
