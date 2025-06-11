@@ -27,12 +27,6 @@ provider:
       Resource:
         - arn:aws:dynamodb:${self:custom.awsRegion}:${aws:accountId}:table/${self:custom.resources.${opt:stage, 'dev'}.ddbTable}
 
-    - Effect: Allow
-      Action:
-        - sqs:SendMessage
-      Resource:
-        - arn:aws:sqs:${self:custom.awsRegion}:${aws:accountId}:db-writer-dlq-${opt:stage, 'dev'}
-
 functions:
   csvProcessor:
     handler: dist/csvProcessor.handler
@@ -109,25 +103,6 @@ resources:
               Condition:
                 ArnEquals:
                   aws:SourceArn: !Ref PipelineTopic
-
-    # DLQ for dbWriter Lambda
-    DbWriterDLQ:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: db-writer-dlq-${opt:stage, 'dev'}
-
-    DbWriterDLQPolicy:
-      Type: AWS::SQS::QueuePolicy
-      Properties:
-        Queues:
-          - Ref: DbWriterDLQ
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            - Effect: Allow
-              Principal: "*"
-              Action: "sqs:SendMessage"
-              Resource: "*"
 
     # DynamoDB Table
     CsvTable:
